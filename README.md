@@ -1,5 +1,3 @@
-How did I do it?
-
 Here´s the code for what I did to scrape the Uruguayan Ministry of Interior´s website
 
 It was done with Google Sheets and R Studio Cloud
