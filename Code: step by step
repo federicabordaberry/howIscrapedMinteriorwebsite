@@ -1,1 +1,9 @@
-Here is my step by step of how I got to my results
+#Here is my step by step of how I got to my results
+#I found a pattern in my URL (https://www.minterior.gub.uy/index.php/unicom/noticias)
+#Each page (there are 210 of them) contained 25 news in it
+#The URL attached this at the end "/noticias?start=25" on the second page, and the number kept going from 25 to 25 for all the pages
+#I generated a Google Sheets where I generated the 210 URLs
+#In a new sheet I transposed all of my rows into columns with the function "TRANSPOSE"
+#I copied that sheet and created a scraper using the "IMPORTXML" function. My XPath query was the URL and the HTML tag "//td[@class="list-title"]//@href"
+#It looked something like this: =IMPORTXML(URL,//td[@class="list-title"]//@href)
+#That gave me all the URLs to the news in each page
