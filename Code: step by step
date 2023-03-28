@@ -7,3 +7,119 @@
 #I copied that sheet and created a scraper using the "IMPORTXML" function. My XPath query was the URL and the HTML tag "//td[@class="list-title"]//@href"
 #It looked something like this: =IMPORTXML(URL,//td[@class="list-title"]//@href)
 #That gave me all the URLs to the news in each page
+#Because there were thousands of scraping formulas working at the same time, I had to paste "only values" on a new sheet as not to collapse Google Sheets
+#After that, I ended up with tons of 27 row columns filled with al the URLs from news 
+#Instead of finding a way of getting all the 210 columns into one, I looked at the URLs and found a pattern
+#The base URL ("https://www.minterior.gub.uy/index.php/unicom/noticias/") had attached at the end a number that always added 1, started in 4625 and ended in 10778
+#Using a CONCAT funcion in sheets I adhered all those numbers to a new base link 
+#The problem, which I didn't realise at the time, was that not all of the URLs generated existed (I would encounter a problem later)
+#Having more than 6,000 rows of URLs I decided I had to clean up and work only with the URLs that were directly linked to raided items by getting the title of the news
+#Here is when R Studio Cloud comes in (I find the online version goes quicker than the one in my computer)
+#I created a function that fetched the "//h2" HTML tag on a given URL
+
+library(rvest)
+
+all_url_dataset <- read_xlsx("Unicom links for R.xlsx")
+
+find_title <- function(URL) {
+  title <- rvest::read_html(URL) %>%
+    html_element("h2") %>%
+    html_text2()
+  return(title)
+}
+
+#That worked with individual links, but then I needed the function to go all through my rows and leave the result in a new column
+#I used this as a first option:
+
+apply(all_url_dataset, 1, find_title) %>%
+  Sys.sleep(1)
+  
+#When the scraper started working on each row, I immediatelly got a "404 HTML" error
+#That, of course, happened because I hadn't realised that many of my URLs did not exist
+#I tried another way, with the following code:
+
+ind_title(all_url_dataset$URL[1])
+titlevector <- c()
+for (i in all_url_dataset$URL){
+foundtitle <- find_title(i)
+ titlevector <- c(titlevector,foundtitle)
+Sys.sleep(1)
+print()
+}
+
+#Again, I received all the times, the "404 HTML" error
+#That's when I tried using Google Sheets, another scraper
+#The function I used to scrape was IMPORTXML and my XPath had each URL and the //h2 tag
+#That took time, because I had to paste results as only values, so Google Sheets wouldn't collapse again
+#But, by doing that, I saw that some URLs were giving me N/A values
+#I clicked on those and that's how I realised that the N/A ones were the invalid URLs (I painted the cells yellow to distinguish them and to be able to erase the scraping formula to allow other formula to complete)
+#Using a filter, I sent all my N/A URLs to the end and erased them
+#Once again, I needed to scrape all the titles in the URLs, but now I had no invalid ones, so I gave R a try once again
+#I uploaded my new dataset and decided to ask questions to the Artificial Intelligence Chat GPT
+#I asked for a scraper that looked for all "//h2" tags in a given URL, that that formula repeated itself all through the rows and that the result was sent to a new column matching the URLs
+#After trying some options it gave me, I edited the code myself, using Chat GPT one´s as a base
+#The used code was this:
+
+library(readxl)
+library(dplyr)
+library(rvest)
+library(tidyverse)
+
+
+selected_urls <- read_excel("Selected URL titles.xlsx")
+
+scrape_h2 <- function(URL) {
+  webpage <- read_html(URL)
+  h2_tags <- html_nodes(webpage, "h2")
+  h2_text <- html_text(h2_tags)
+  return(h2_text)
+}
+
+selected_urls <- selected_urls %>%
+  mutate(h2_text = sapply(URL, scrape_h2))
+  
+#Have into account that the column that had all my URLs was called "URL"
+#Then, I started filtering which titles were appropriate for news that had raided items in it
+#For that, I used a word counter website and inserted the column that had all the titles, as text only
+#Then, I received the most common used words and used that as an inspiration to find regular expressions in news titles that had raided items in them
+#Using the REGEXEXTRACT function in Google Sheets, I searched for regular expressions in titles
+#An example: =REGEXEXTRACT(B2,"[Aa]llan[A-Za-z]+") -B2 being the cell with the title-
+#After using that formula for all the regular expressions I thought of (52 of them) I selected the URLs that had titles which had any of those regular expressions
+#I then reduced my quantity of rows to a bit more than 2,500 against the first more than 6,000
+#Then, I constructed a scraper in R that allowed me to fetch all the "//p" values in all of those URLs and put them in columns (horizontally) instead of rows (vertically)
+#I used Chat GPT to build a base code, once again, that in occasions didn't work, but with some editing it gave in results
+#It is this one:
+
+# Define function to scrape all <p> tags from a given URL
+scrape_p_final <- function(url) {
+  tryCatch({
+    webpage <- read_html(URL, timeout = 10)
+    p_tags <- html_nodes(webpage, "p")
+    p_text <- html_text(p_tags)
+    return(p_text)
+  }, error = function(e) {
+    message("Failed to scrape URL: ", url)
+    return(NA_character_)
+  })
+}
+
+# Scrape the <p> tags for each URL and store the result in a new variable "p_scraped"
+selected_urls$p_scraped <- lapply(selected_urls$URL, scrape_p_final)
+
+# Convert the list of scraped <p> tags to a data frame with columns for each tag
+max_cols <- max(sapply(selected_urls$p_scraped, length))
+for (i in 1:max_cols) {
+  selected_urls <- selected_urls %>%
+    mutate(!!paste0("p_", i) := sapply(p_scraped, function(x) ifelse(length(x) >= i, x[i], NA_character_)))
+}
+
+# Remove the original "p_scraped" column
+selected_urls$p_scraped <- NULL
+
+#Extract the new dataset in xlsx form
+write.xlsx(selected_urls, file = "letsseewhathappened.xlsx", rowNames = FALSE)
+
+#Using Google Sheets once again, I manually added a blank column between each existing column (there were filled with "//p" tags) to apply another REGEX expression
+#There probably is a way of getting those blank columns with a formula, but I enjoyed the manual work after so much thinking
+
+
