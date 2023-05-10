@@ -86,40 +86,10 @@ selected_urls <- selected_urls %>%
 #An example: =REGEXEXTRACT(B2,"[Aa]llan[A-Za-z]+") -B2 being the cell with the title-
 #After using that formula for all the regular expressions I thought of (52 of them) I selected the URLs that had titles which had any of those regular expressions
 #I then reduced my quantity of rows to a bit more than 2,500 against the first more than 6,000
-#Then, I constructed a scraper in R that allowed me to fetch all the "//p" values in all of those URLs and put them in columns (horizontally) instead of rows (vertically)
-#I used Chat GPT to build a base code, once again, that in occasions didn't work, but with some editing it gave in results
-#It is this one:
-
-# Define function to scrape all <p> tags from a given URL
-scrape_p_final <- function(url) {
-  tryCatch({
-    webpage <- read_html(URL, timeout = 10)
-    p_tags <- html_nodes(webpage, "p")
-    p_text <- html_text(p_tags)
-    return(p_text)
-  }, error = function(e) {
-    message("Failed to scrape URL: ", url)
-    return(NA_character_)
-  })
-}
-
-# Scrape the <p> tags for each URL and store the result in a new variable "p_scraped"
-selected_urls$p_scraped <- lapply(selected_urls$URL, scrape_p_final)
-
-# Convert the list of scraped <p> tags to a data frame with columns for each tag
-max_cols <- max(sapply(selected_urls$p_scraped, length))
-for (i in 1:max_cols) {
-  selected_urls <- selected_urls %>%
-    mutate(!!paste0("p_", i) := sapply(p_scraped, function(x) ifelse(length(x) >= i, x[i], NA_character_)))
-}
-
-# Remove the original "p_scraped" column
-selected_urls$p_scraped <- NULL
-
-#Extract the new dataset in xlsx form
-write.xlsx(selected_urls, file = "letsseewhathappened.xlsx", rowNames = FALSE)
-
-#Using Google Sheets once again, I manually added a blank column between each existing column (there were filled with "//p" tags) to apply another REGEX expression
-#There probably is a way of getting those blank columns with a formula, but I enjoyed the manual work after so much thinking
-
+#After a long journalistic process, I realized that it was not representative enough to know how many of the news of the Ministry of Interior were related to raided goods
+#I decided I only needed to know how many of them where related to raided goods in the frontier with Argentina or Brazil.
+#Once again, I used a REGEXEXTRACT formula.
+#For Argentina, the formula was this: =REGEXEXTRACT(B2,"[Ar]rgen[A-Za-z]+")
+#For Brazil, it was this: =REGEXEXTRACT(B2,"[Bb]rasi[A-Za-z]+")
+#They ended up being something like 49 titles with news from Brazil, against 10 with news from Argentina
 
